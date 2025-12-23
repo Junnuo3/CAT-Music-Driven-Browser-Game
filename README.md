@@ -2,10 +2,16 @@
 
 An interactive browser experience that combines visuals, procedural music, and physics-based interactions. Progress through five stages, each with unique gameplay and audio that responds to your actions.
 
+<div align="center">
+
+### [🎮 PLAY IT HERE!](https://junnuo3.github.io/CAT-Music-Driven-Browser-Game/)
+
+</div>
+
 ## Demo
 
-<video src="./video.mov" controls width="100%" style="max-width: 800px;">
-  Your browser does not support the video tag. <a href="./video.mov">Download the demo video</a>
+<video src="./video.mp4" controls width="100%" style="max-width: 800px;">
+  Your browser does not support the video tag. <a href="./video.mp4">Download the demo video</a>
 </video>
 
 
