@@ -8,15 +8,6 @@ An interactive browser experience that combines visuals, procedural music, and p
 
 </div>
 
-## Demo
-
-<div align="center">
-
-<iframe width="100%" height="450" src="https://junnuo3.github.io/CAT-Music-Driven-Browser-Game/video.html" frameborder="0" allowfullscreen style="max-width: 800px; border-radius: 8px;"></iframe>
-
-</div>
-
-
 ## Stages
 
 ### Stage 1: Wisteria Garden
