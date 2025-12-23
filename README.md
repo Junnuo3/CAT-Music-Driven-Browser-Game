@@ -10,9 +10,11 @@ An interactive browser experience that combines visuals, procedural music, and p
 
 ## Demo
 
-<video src="./video.mp4" controls width="100%" style="max-width: 800px;">
-  Your browser does not support the video tag. <a href="./video.mp4">Download the demo video</a>
-</video>
+<div align="center">
+
+<iframe width="100%" height="450" src="https://junnuo3.github.io/CAT-Music-Driven-Browser-Game/video.mp4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="max-width: 800px;"></iframe>
+
+</div>
 
 
 ## Stages
