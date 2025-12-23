@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Cormorant+Garamond:wght@300;400;600&display=swap" rel="stylesheet">
+      <style>
+          body { margin: 0; overflow: hidden; background-color: #aaccff; font-family: 'Cormorant Garamond', serif; }
+        canvas { 
+            display: block; 
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        /* The Cat Paw Cursor (Hidden in Stage 1) */
+        #paw-cursor {
+            position: fixed;
+            top: 0; left: 0;
+            width: 150px; 
+            pointer-events: none;
+            z-index: 9999;
+            display: none; 
+            transform-origin: center center;
+        }
+
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column; z-index: 10;
+            transition: opacity 1s;
+            pointer-events: none;
+        }
+        #overlay h1, #overlay button {
+            pointer-events: auto;
+        }
+        #overlay h1 { 
+            font-family: 'Playfair Display', serif;
+            font-size: 5rem;
+            font-weight: 700;
+            color: #e5e5eb; 
+            letter-spacing: 8px; 
+            margin-bottom: 40px;
+            z-index: 2; 
+            position: relative;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            animation: fadeInDown 1s ease-out;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        #start-btn {
+            margin-top: 30px; 
+            padding: 14px 50px; 
+            border: 1px solid rgba(44, 44, 44, 0.3);
+            background: transparent; 
+            cursor: pointer; 
+            color: #2c2c2c;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.3rem;
+            font-weight: 400;
+            letter-spacing: 3px;
+            transition: all 0.4s ease; 
+            z-index: 2; 
+            position: relative;
+            text-transform: uppercase;
+            animation: fadeInUp 1s ease-out 0.3s both;
+        }
+        #start-btn:hover { 
+            background: #2c2c2c;
+            color: #e5e5eb;
+            border-color: #2c2c2c;
+            transform: translateY(-2px);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        #stage-buttons-container {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 60px;
+            z-index: 2;
+            pointer-events: auto;
+        }
+        
+        #overlay .stage-btn {
+            margin: 0;
+            padding: 8px 25px; 
+            border: 1px solid rgba(102, 102, 102, 0.3);
+            background: transparent; 
+            cursor: pointer; 
+            color: #666;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.1rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            transition: all 0.3s ease; 
+            position: relative;
+            opacity: 0.7;
+            animation: fadeInUp 1s ease-out 0.6s both;
+        }
+        #overlay .stage-btn:hover { 
+            background: #2c2c2c;
+            color: #e5e5eb;
+            border-color: #2c2c2c;
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+        
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+
+    <img id="paw-cursor" src="./assets/catpaw.png" alt="paw">
+
+    <div id="overlay">
+        <h1>CAT</h1>
+        <button id="start-btn">Enter</button>
+        <div id="stage-buttons-container">
+            <button id="stage2-btn" class="stage-btn">2</button>
+            <button id="stage3-btn" class="stage-btn">3</button>
+            <button id="stage4-btn" class="stage-btn">4</button>
+            <button id="stage5-btn" class="stage-btn">5</button>
+        </div>
+    </div>
+
+    <script src="AudioManager.js"></script>
+    <script src="WisteriaVine.js"></script>
+    <script src="preloadStage3.js"></script>
+
+    <script src="stage1.js"></script>
+    <script src="stage2.js"></script>
+    <script src="stage3.js"></script>
+    <script src="stage4.js"></script>
+    <script src="stage5.js"></script>
+
+    <script>
+        // Title Page with 3D Scene
+        class TitlePage {
+            constructor() {
+                // Catwalk positioning and scale
+                this.CONFIG = {
+                    catwalk: {
+                        x: 0.15,
+                        y: 0.04,
+                        z: 0,
+                        scale: 0.5
+                    }
+                };
+                
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.catwalkMesh = null;
+                this.mouse = new THREE.Vector2();
+                
+                this.onMouseMove = this.onMouseMove.bind(this);
+                this.onWindowResize = this.onWindowResize.bind(this);
+                
+                this.init();
+            }
+            
+            init() {
+                // Scene with white background (matching Stage 1)
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xe5e5eb); // Same white as Stage 1
+                
+                // Camera
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
+                this.camera.position.z = 5;
+                
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.outputEncoding = THREE.sRGBEncoding;
+                this.renderer.setClearColor(0xe5e5eb, 1.0);
+                const canvas = this.renderer.domElement;
+                canvas.style.position = 'absolute';
+                canvas.style.top = '0';
+                canvas.style.left = '0';
+                canvas.style.zIndex = '1';
+                document.body.appendChild(canvas);
+                
+                // Lights
+                const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+                this.scene.add(ambientLight);
+                
+                // Load catwalk.png
+                const catwalkLoader = new THREE.TextureLoader();
+                catwalkLoader.load('./assets/catwalk.png', (texture) => {
+                    texture.encoding = THREE.sRGBEncoding;
+                    // Calculate aspect ratio to maintain image proportions
+                    const aspectRatio = texture.image.width / texture.image.height;
+                    const catwalkGeometry = new THREE.PlaneGeometry(2 * aspectRatio, 2);
+                    const catwalkMaterial = new THREE.MeshBasicMaterial({ 
+                        map: texture,
+                        transparent: true,
+                        side: THREE.DoubleSide
+                    });
+                    this.catwalkMesh = new THREE.Mesh(catwalkGeometry, catwalkMaterial);
+                    // Apply position and scale from config
+                    this.catwalkMesh.position.set(
+                        this.CONFIG.catwalk.x,
+                        this.CONFIG.catwalk.y,
+                        this.CONFIG.catwalk.z
+                    );
+                    this.catwalkMesh.scale.set(
+                        this.CONFIG.catwalk.scale,
+                        this.CONFIG.catwalk.scale,
+                        1
+                    );
+                    this.scene.add(this.catwalkMesh);
+                });
+                
+                // Event listeners
+                window.addEventListener('mousemove', this.onMouseMove);
+                window.addEventListener('resize', this.onWindowResize);
+                
+                // Start animation loop
+                this.animate();
+            }
+            
+            
+            onMouseMove(event) {
+                // Normalize mouse coordinates to -1 to 1 range
+                this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                
+                // Smooth camera parallax movement (more subtle)
+                const targetX = this.mouse.x * 0.15;
+                const targetY = this.mouse.y * 0.15;
+                gsap.to(this.camera.position, {
+                    x: targetX,
+                    y: targetY,
+                    duration: 1.2,
+                    ease: "power2.out"
+                });
+            }
+            
+            onWindowResize() {
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera.aspect = aspect;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+            
+            dispose() {
+                window.removeEventListener('mousemove', this.onMouseMove);
+                window.removeEventListener('resize', this.onWindowResize);
+                
+                if (this.renderer) {
+                    document.body.removeChild(this.renderer.domElement);
+                    this.renderer.dispose();
+                }
+                
+                if (this.catwalkMesh) {
+                    if (this.catwalkMesh.material) this.catwalkMesh.material.dispose();
+                    if (this.catwalkMesh.geometry) this.catwalkMesh.geometry.dispose();
+                }
+            }
+        }
+        
+        let currentStage = null;
+        let titlePage = null;
+        
+        // Initialize title page (run after DOM is ready)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                titlePage = new TitlePage();
+            });
+        } else {
+            // DOM already loaded
+            titlePage = new TitlePage();
+        }
+
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            await Tone.start();
+            
+            // Set body background to white immediately to prevent blue from showing
+            document.body.style.backgroundColor = '#e5e5eb';
+            
+            // Create white overlay matching title page background
+            // Start at opacity 0 and fade in as title page fades out
+            const whiteOverlay = document.createElement('div');
+            whiteOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #e5e5eb;
+                z-index: 10000;
+                opacity: 0;
+                pointer-events: none;
+            `;
+            document.body.appendChild(whiteOverlay);
+            
+            // Fade out title page and fade in white overlay simultaneously
+            const overlay = document.getElementById('overlay');
+            const titleCanvas = titlePage ? titlePage.renderer.domElement : null;
+            
+            const fadeOutDuration = 1.0;
+            
+            // Fade in white overlay as title page fades out
+            gsap.to(whiteOverlay, {
+                opacity: 1,
+                duration: fadeOutDuration,
+                ease: "power2.inOut"
+            });
+            
+            if (overlay) {
+                gsap.to(overlay, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut"
+                });
+            }
+            
+            if (titleCanvas) {
+                gsap.to(titleCanvas, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        // Dispose title page after fade out
+                        if (titlePage && titlePage.dispose) {
+                            titlePage.dispose();
+                        }
+                        overlay.classList.add('hidden');
+                        
+                        // Load Stage 1 and fade it in (white overlay will fade out with Stage 1)
+                        loadStage1(whiteOverlay);
+                    }
+                });
+            } else {
+                // If no canvas, wait for fade duration then dispose and load
+                setTimeout(() => {
+                    if (titlePage && titlePage.dispose) {
+                        titlePage.dispose();
+                    }
+                    overlay.classList.add('hidden');
+                    loadStage1(whiteOverlay);
+                }, fadeOutDuration * 1000);
+            }
+        });
+
+        // Direct Stage 2 loading (for testing/preview)
+        document.getElementById('stage2-btn').addEventListener('click', async () => {
+            await Tone.start();
+            
+            // Keep body background white initially (will change after fade in)
+            document.body.style.backgroundColor = '#e5e5eb';
+            
+            // Create fade overlay matching title page background (white)
+            const fadeOverlay = document.createElement('div');
+            fadeOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #e5e5eb;
+                z-index: 10000;
+                opacity: 0;
+                pointer-events: none;
+            `;
+            document.body.appendChild(fadeOverlay);
+            
+            // Fade out title page and fade in overlay simultaneously
+            const overlay = document.getElementById('overlay');
+            const titleCanvas = titlePage ? titlePage.renderer.domElement : null;
+            
+            const fadeOutDuration = 1.0;
+            
+            // Fade in overlay as title page fades out
+            gsap.to(fadeOverlay, {
+                opacity: 1,
+                duration: fadeOutDuration,
+                ease: "power2.inOut"
+            });
+            
+            if (overlay) {
+                gsap.to(overlay, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut"
+                });
+            }
+            
+            if (titleCanvas) {
+                gsap.to(titleCanvas, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        // Dispose title page after fade out
+            if (titlePage && titlePage.dispose) {
+                titlePage.dispose();
+            }
+                        overlay.classList.add('hidden');
+                        
+                        // Load Stage 2 and fade it in
+                        loadStage2Direct(fadeOverlay);
+                    }
+                });
+            } else {
+                // If no canvas, wait for fade duration then dispose and load
+                setTimeout(() => {
+                    if (titlePage && titlePage.dispose) {
+                        titlePage.dispose();
+                    }
+                    overlay.classList.add('hidden');
+                    loadStage2Direct(fadeOverlay);
+                }, fadeOutDuration * 1000);
+            }
+        });
+
+        // Direct Stage 3 loading (for testing/preview)
+        document.getElementById('stage3-btn').addEventListener('click', async () => {
+            await Tone.start();
+            
+            // Keep body background white initially (will change after fade in)
+            document.body.style.backgroundColor = '#e5e5eb';
+            
+            // Create fade overlay matching title page background (white)
+            const fadeOverlay = document.createElement('div');
+            fadeOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #e5e5eb;
+                z-index: 10000;
+                opacity: 0;
+                pointer-events: none;
+            `;
+            document.body.appendChild(fadeOverlay);
+            
+            // Fade out title page and fade in overlay simultaneously
+            const overlay = document.getElementById('overlay');
+            const titleCanvas = titlePage ? titlePage.renderer.domElement : null;
+            
+            const fadeOutDuration = 1.0;
+            
+            // Fade in overlay as title page fades out
+            gsap.to(fadeOverlay, {
+                opacity: 1,
+                duration: fadeOutDuration,
+                ease: "power2.inOut"
+            });
+            
+            if (overlay) {
+                gsap.to(overlay, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut"
+                });
+            }
+            
+            if (titleCanvas) {
+                gsap.to(titleCanvas, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        // Dispose title page after fade out
+            if (titlePage && titlePage.dispose) {
+                titlePage.dispose();
+            }
+                        overlay.classList.add('hidden');
+                        
+                        // Load Stage 3 and fade it in
+                        loadStage3Direct(fadeOverlay);
+                    }
+                });
+            } else {
+                // If no canvas, wait for fade duration then dispose and load
+                setTimeout(() => {
+                    if (titlePage && titlePage.dispose) {
+                        titlePage.dispose();
+                    }
+                    overlay.classList.add('hidden');
+                    loadStage3Direct(fadeOverlay);
+                }, fadeOutDuration * 1000);
+            }
+        });
+
+        // Direct Stage 4 loading (for testing/preview)
+        document.getElementById('stage4-btn').addEventListener('click', async () => {
+            await Tone.start();
+            
+            // Keep body background white initially (will change after fade in)
+            document.body.style.backgroundColor = '#e5e5eb';
+            
+            // Create fade overlay matching title page background (white)
+            const fadeOverlay = document.createElement('div');
+            fadeOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #e5e5eb;
+                z-index: 10000;
+                opacity: 0;
+                pointer-events: none;
+            `;
+            document.body.appendChild(fadeOverlay);
+            
+            // Fade out title page and fade in overlay simultaneously
+            const overlay = document.getElementById('overlay');
+            const titleCanvas = titlePage ? titlePage.renderer.domElement : null;
+            
+            const fadeOutDuration = 1.0;
+            
+            // Fade in overlay as title page fades out
+            gsap.to(fadeOverlay, {
+                opacity: 1,
+                duration: fadeOutDuration,
+                ease: "power2.inOut"
+            });
+            
+            if (overlay) {
+                gsap.to(overlay, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut"
+                });
+            }
+            
+            if (titleCanvas) {
+                gsap.to(titleCanvas, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        // Dispose title page after fade out
+            if (titlePage && titlePage.dispose) {
+                titlePage.dispose();
+            }
+                        overlay.classList.add('hidden');
+                        
+                        // Load Stage 4 and fade it in
+                        loadStage4Direct(fadeOverlay);
+                    }
+                });
+            } else {
+                // If no canvas, wait for fade duration then dispose and load
+                setTimeout(() => {
+                    if (titlePage && titlePage.dispose) {
+                        titlePage.dispose();
+                    }
+                    overlay.classList.add('hidden');
+                    loadStage4Direct(fadeOverlay);
+                }, fadeOutDuration * 1000);
+            }
+        });
+
+        // Direct Stage 5 loading (for testing/preview)
+        document.getElementById('stage5-btn').addEventListener('click', async () => {
+            await Tone.start();
+            
+            // Keep body background white (Stage 5 also uses white)
+            document.body.style.backgroundColor = '#e5e5eb';
+            
+            // Create fade overlay matching title page background (white)
+            const fadeOverlay = document.createElement('div');
+            fadeOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #e5e5eb;
+                z-index: 10000;
+                opacity: 0;
+                pointer-events: none;
+            `;
+            document.body.appendChild(fadeOverlay);
+            
+            // Fade out title page and fade in overlay simultaneously
+            const overlay = document.getElementById('overlay');
+            const titleCanvas = titlePage ? titlePage.renderer.domElement : null;
+            
+            const fadeOutDuration = 1.0;
+            
+            // Fade in overlay as title page fades out
+            gsap.to(fadeOverlay, {
+                opacity: 1,
+                duration: fadeOutDuration,
+                ease: "power2.inOut"
+            });
+            
+            if (overlay) {
+                gsap.to(overlay, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut"
+                });
+            }
+            
+            if (titleCanvas) {
+                gsap.to(titleCanvas, {
+                    opacity: 0,
+                    duration: fadeOutDuration,
+                    ease: "power2.inOut",
+                    onComplete: () => {
+                        // Dispose title page after fade out
+            if (titlePage && titlePage.dispose) {
+                titlePage.dispose();
+            }
+                        overlay.classList.add('hidden');
+                        
+                        // Load Stage 5 and fade it in
+                        loadStage5Direct(fadeOverlay);
+                    }
+                });
+            } else {
+                // If no canvas, wait for fade duration then dispose and load
+                setTimeout(() => {
+                    if (titlePage && titlePage.dispose) {
+                        titlePage.dispose();
+                    }
+                    overlay.classList.add('hidden');
+                    loadStage5Direct(fadeOverlay);
+                }, fadeOutDuration * 1000);
+            }
+        });
+
+        function loadStage2Direct(fadeOverlay) {
+            if (currentStage && currentStage.dispose) currentStage.dispose();
+            console.log("Loading Stage 2 with fade transition...");
+            const stage2 = new Stage2(loadStage3);
+            currentStage = stage2;
+            
+            // Wait for Stage 2 to initialize (async) and append canvas
+            let framesRendered = 0;
+            let canvasFound = false;
+            const waitForRender = () => {
+                requestAnimationFrame(() => {
+                    framesRendered++;
+                    
+                    // Get Stage 2 canvas (wait for renderer to be created and canvas appended)
+                    const stage2Canvas = stage2 && stage2.renderer && stage2.renderer.domElement ? stage2.renderer.domElement : null;
+                    
+                    if (stage2Canvas && stage2Canvas.parentNode) {
+                        // Canvas is appended, set its styles
+                        if (!canvasFound) {
+                            canvasFound = true;
+                            stage2Canvas.style.position = 'absolute';
+                            stage2Canvas.style.top = '0';
+                            stage2Canvas.style.left = '0';
+                            stage2Canvas.style.zIndex = '1';
+                            stage2Canvas.style.opacity = '0';
+                        }
+                        
+                        // Update stage to render
+                        if (stage2 && stage2.update) stage2.update();
+                        
+                        // Wait a few more frames to ensure rendering, then fade in
+                        if (framesRendered < 5) {
+                            waitForRender();
+                        } else {
+                            // Fade in Stage 2 and fade out overlay simultaneously
+                            gsap.to(stage2Canvas, {
+                                opacity: 1,
+                                duration: 1.0,
+                                ease: "power2.inOut"
+                            });
+                            
+                            if (fadeOverlay) {
+                                gsap.to(fadeOverlay, {
+                                    opacity: 0,
+                                    duration: 1.0,
+                                    ease: "power2.inOut",
+                                    onComplete: () => {
+                                        // Update body background to match Stage 2
+                                        document.body.style.backgroundColor = '#aaccff';
+                                        fadeOverlay.remove();
+                                    }
+                                });
+                            } else {
+                                // Update body background even if no overlay
+                                document.body.style.backgroundColor = '#aaccff';
+                            }
+                        }
+                    } else if (framesRendered < 30) {
+                        // Canvas not ready yet, keep waiting (Stage2 init is async)
+                        waitForRender();
+                    } else {
+                        // Canvas not found after waiting, just remove overlay
+                        console.warn("Stage 2 canvas not found after waiting");
+                        if (fadeOverlay) fadeOverlay.remove();
+                        document.body.style.backgroundColor = '#aaccff';
+                    }
+                });
+            };
+            waitForRender();
+        }
+
+        function loadStage3Direct(fadeOverlay) {
+            if (currentStage && currentStage.dispose) currentStage.dispose();
+            console.log("Loading Stage 3 with fade transition...");
+            // Load Stage 3 without water state (will show placeholder or create default water)
+            // Pass loadStage4 as callback so NEXT button works
+            const stage3 = new Stage3(null, loadStage4);
+            currentStage = stage3;
+            
+            // CRITICAL: Stage3's init() runs synchronously and sets opacity to 1 when no waterState
+            // We need to continuously force it to 0 until we're ready to fade in
+            let readyToFade = false;
+            let opacityGuardInterval = null;
+            
+            const forceOpacityToZero = () => {
+                if (readyToFade) return;
+                const stage3Canvas = stage3 ? (stage3.canvas || (stage3.renderer ? stage3.renderer.domElement : null)) : null;
+                if (stage3Canvas) {
+                    // Use setProperty with important flag via CSS to override any inline styles
+                    stage3Canvas.style.setProperty('opacity', '0', 'important');
+                    stage3Canvas.style.position = 'absolute';
+                    stage3Canvas.style.top = '0';
+                    stage3Canvas.style.left = '0';
+                    stage3Canvas.style.zIndex = '1';
+                }
+            };
+            
+            // Set immediately (synchronously) - Stage3 init() has already run
+            forceOpacityToZero();
+            
+            // Use setInterval to continuously force opacity to 0 (more reliable than MutationObserver for style changes)
+            opacityGuardInterval = setInterval(() => {
+                if (!readyToFade) {
+                    forceOpacityToZero();
+                }
+            }, 10); // Check every 10ms to catch any changes quickly
+            
+            // Wait for Stage 3 to initialize and append canvas
+            let framesRendered = 0;
+            const waitForRender = () => {
+                requestAnimationFrame(() => {
+                    framesRendered++;
+                    
+                    // Force opacity to 0 on every frame until ready
+                    if (!readyToFade) {
+                        forceOpacityToZero();
+                    }
+                    
+                    // Get Stage 3 canvas (it should be appended by now)
+                    const stage3Canvas = stage3 ? (stage3.canvas || (stage3.renderer ? stage3.renderer.domElement : null)) : null;
+                    
+                    if (stage3Canvas && stage3Canvas.parentNode) {
+                        // Canvas is appended, ensure its styles are set
+                        stage3Canvas.style.position = 'absolute';
+                        stage3Canvas.style.top = '0';
+                        stage3Canvas.style.left = '0';
+                        stage3Canvas.style.zIndex = '1';
+                        stage3Canvas.style.setProperty('opacity', '0', 'important'); // Force to 0
+                        
+                        // Update stage to render
+                        if (stage3 && stage3.update) stage3.update();
+                        
+                        // Wait a few more frames to ensure rendering, then fade in
+                        if (framesRendered < 5) {
+                            waitForRender();
+                        } else {
+                            // Stop forcing opacity to 0
+                            readyToFade = true;
+                            if (opacityGuardInterval) {
+                                clearInterval(opacityGuardInterval);
+                            }
+                            
+                            // Remove the important flag so GSAP can animate it
+                            stage3Canvas.style.removeProperty('opacity');
+                            stage3Canvas.style.opacity = '0';
+                            
+                            // Fade in Stage 3 and fade out overlay simultaneously
+                            gsap.to(stage3Canvas, {
+                                opacity: 1,
+                                duration: 1.0,
+                                ease: "power2.inOut"
+                            });
+                            
+                            if (fadeOverlay) {
+                                gsap.to(fadeOverlay, {
+                                    opacity: 0,
+                                    duration: 1.0,
+                                    ease: "power2.inOut",
+                                    onComplete: () => {
+                                        // Update body background to match Stage 3
+                                        document.body.style.backgroundColor = '#aaccff';
+                                        fadeOverlay.remove();
+                                    }
+                                });
+                            } else {
+                                // Update body background even if no overlay
+                                document.body.style.backgroundColor = '#aaccff';
+                            }
+                        }
+                    } else if (framesRendered < 20) {
+                        // Canvas not ready yet, keep waiting
+                        waitForRender();
+                    } else {
+                        // Canvas not found after waiting, cleanup and remove overlay
+                        readyToFade = true;
+                        if (opacityGuardInterval) {
+                            clearInterval(opacityGuardInterval);
+                        }
+                        console.warn("Stage 3 canvas not found after waiting");
+                        if (fadeOverlay) fadeOverlay.remove();
+                        document.body.style.backgroundColor = '#aaccff';
+                    }
+                });
+            };
+            waitForRender();
+        }
+
+        function loadStage4Direct(fadeOverlay) {
+            if (currentStage && currentStage.dispose) currentStage.dispose();
+            console.log("Loading Stage 4 with fade transition...");
+            const stage4 = new Stage4(loadStage5);
+            currentStage = stage4;
+            
+            // Wait for Stage 4 to initialize and append canvas
+            let framesRendered = 0;
+            const waitForRender = () => {
+                requestAnimationFrame(() => {
+                    framesRendered++;
+                    
+                    // Get Stage 4 canvas (it should be appended by now)
+                    const stage4Canvas = stage4 ? (stage4.canvas || (stage4.renderer ? stage4.renderer.domElement : null)) : null;
+                    
+                    if (stage4Canvas && stage4Canvas.parentNode) {
+                        // Canvas is appended, set its styles
+                        stage4Canvas.style.position = 'absolute';
+                        stage4Canvas.style.top = '0';
+                        stage4Canvas.style.left = '0';
+                        stage4Canvas.style.zIndex = '1';
+                        stage4Canvas.style.opacity = '0';
+                        
+                        // Update stage to render
+                        if (stage4 && stage4.update) stage4.update();
+                        
+                        // Wait a few more frames to ensure rendering, then fade in
+                        if (framesRendered < 5) {
+                            waitForRender();
+                        } else {
+                            // Fade in Stage 4 and fade out overlay simultaneously
+                            gsap.to(stage4Canvas, {
+                                opacity: 1,
+                                duration: 1.0,
+                                ease: "power2.inOut"
+                            });
+                            
+                            if (fadeOverlay) {
+                                gsap.to(fadeOverlay, {
+                                    opacity: 0,
+                                    duration: 1.0,
+                                    ease: "power2.inOut",
+                                    onComplete: () => {
+                                        // Update body background to match Stage 4
+                                        document.body.style.backgroundColor = '#f5f5f0';
+                                        fadeOverlay.remove();
+                                    }
+                                });
+                            } else {
+                                // Update body background even if no overlay
+                                document.body.style.backgroundColor = '#f5f5f0';
+                            }
+                        }
+                    } else if (framesRendered < 20) {
+                        // Canvas not ready yet, keep waiting
+                        waitForRender();
+                    } else {
+                        // Canvas not found after waiting, just remove overlay
+                        console.warn("Stage 4 canvas not found after waiting");
+                        if (fadeOverlay) fadeOverlay.remove();
+                        document.body.style.backgroundColor = '#f5f5f0';
+                    }
+                });
+            };
+            waitForRender();
+        }
+
+        function loadStage5Direct(fadeOverlay) {
+            if (currentStage && currentStage.dispose) currentStage.dispose();
+            console.log("Loading Stage 5 with fade transition...");
+            const stage5 = new Stage5(null);
+            currentStage = stage5;
+            
+            // Wait for Stage 5 to initialize and append canvas
+            let framesRendered = 0;
+            const waitForRender = () => {
+                requestAnimationFrame(() => {
+                    framesRendered++;
+                    
+                    // Get Stage 5 canvas (it should be appended by now)
+                    const stage5Canvas = stage5 ? (stage5.canvas || (stage5.renderer ? stage5.renderer.domElement : null)) : null;
+                    
+                    if (stage5Canvas && stage5Canvas.parentNode) {
+                        // Canvas is appended, set its styles
+                        stage5Canvas.style.position = 'absolute';
+                        stage5Canvas.style.top = '0';
+                        stage5Canvas.style.left = '0';
+                        stage5Canvas.style.zIndex = '1';
+                        stage5Canvas.style.opacity = '0';
+                        
+                        // Update stage to render
+                        if (stage5 && stage5.update) stage5.update();
+                        
+                        // Wait a few more frames to ensure rendering, then fade in
+                        if (framesRendered < 5) {
+                            waitForRender();
+                        } else {
+                            // Fade in Stage 5 and fade out overlay simultaneously
+                            gsap.to(stage5Canvas, {
+                                opacity: 1,
+                                duration: 1.0,
+                                ease: "power2.inOut"
+                            });
+                            
+                            if (fadeOverlay) {
+                                gsap.to(fadeOverlay, {
+                                    opacity: 0,
+                                    duration: 1.0,
+                                    ease: "power2.inOut",
+                                    onComplete: () => {
+                                        // Stage 5 also uses white, so no need to change background
+                                        fadeOverlay.remove();
+                                    }
+                                });
+                            }
+                        }
+                    } else if (framesRendered < 20) {
+                        // Canvas not ready yet, keep waiting
+                        waitForRender();
+                    } else {
+                        // Canvas not found after waiting, just remove overlay
+                        console.warn("Stage 5 canvas not found after waiting");
+                        if (fadeOverlay) fadeOverlay.remove();
+                    }
+                });
+            };
+            waitForRender();
+        }
+
+        function createCloudTransitionStage3To4(stage3, onComplete) {
+            console.log("[Stage3->4 Transition] Starting DOM-based cloud transition...");
+            // 1. Create Cloud as a standalone HTML Image (Overlay)
+            // This allows it to persist independently of the 3D canvas
+            const cloudImg = document.createElement('img');
+            cloudImg.src = './assets/cloud.png';
+            cloudImg.style.position = 'fixed';
+            cloudImg.style.left = '0';
+            cloudImg.style.width = '100%'; 
+            cloudImg.style.height = 'auto'; // Maintain aspect ratio
+            cloudImg.style.zIndex = '99999'; // Ensure it is on top of EVERYTHING
+            cloudImg.style.pointerEvents = 'none';
+            cloudImg.style.opacity = '0'; // Hidden until loaded
+            
+            document.body.appendChild(cloudImg);
+            cloudImg.onload = () => {
+                const cloudHeight = cloudImg.offsetHeight;
+                const windowHeight = window.innerHeight;
+                // 2. Setup Start and End positions
+                // Start: Cloud is completely above the viewport
+                const startTop = -cloudHeight;
+                // End: Cloud moves down past the viewport (simulating camera moving up)
+                const endTop = windowHeight + 100; 
+                // Set initial position
+                cloudImg.style.top = startTop + 'px';
+                cloudImg.style.opacity = '1';
+                let hasSwappedStages = false;
+                
+                // Note: Elements fall animation is already started when next button is clicked
+                // No need to start it again here
+                
+                // 3. Animate the Cloud Moving Down
+                gsap.to(cloudImg, {
+                    top: endTop,
+                    duration: 6.0, 
+                    ease: "power1.inOut",
+                    onUpdate: function() {
+                        // 4. Trigger the Swap when the Cloud covers the screen
+                        // We check the progress of the animation. 
+                        // When progress is around 40% (cloud is roughly centered over screen), swap.
+                        if (this.progress() > 0.40 && !hasSwappedStages) {
+                            hasSwappedStages = true;
+                            console.log("[Stage3->4] Cloud covering screen. Swapping stages now...");
+                            
+                            // A. Dispose Stage 3
+                            if (stage3 && stage3.dispose) {
+                                stage3.dispose();
+                                console.log("Stage 3 disposed");
+                            }
+                            // B. Create Stage 4 (Hidden underneath the cloud image)
+                            // Stage 4 defaults to z-index 1, so it will sit behind the cloudImg (z-index 99999)
+                            const stage4 = new Stage4(loadStage5);
+                            currentStage = stage4;
+                            
+                            // Store stage4 reference for enabling camera movement after transition
+                            window.stage4TransitionRef = stage4;
+                            
+                            // Optional: Ensure body background matches Stage 4 just in case
+                            document.body.style.backgroundColor = '#aaccff';
+                        }
+                    },
+                    onComplete: () => {
+                        console.log("[Stage3->4] Transition finished. Removing cloud.");
+                        // Note: Camera movement will be enabled when camera animation completes
+                        // (handled in Stage4.animateCameraUp() onComplete callback)
+                        window.stage4TransitionRef = null; // Clean up reference
+                        // 5. Cleanup
+                        cloudImg.remove();
+                        if (onComplete) onComplete();
+                    }
+                });
+            };
+            // Error handling if image fails to load
+            cloudImg.onerror = () => {
+                console.error("Failed to load cloud.png");
+                if (stage3 && stage3.dispose) stage3.dispose();
+                const stage4 = new Stage4(loadStage5);
+                currentStage = stage4;
+                // Enable camera movement immediately if cloud fails
+                if (stage4 && stage4.enableCameraMovement) {
+                    stage4.enableCameraMovement();
+                }
+                cloudImg.remove();
+                if (onComplete) onComplete();
+            };
+        }
+
+        function loadStage1(whiteOverlay) {
+            if (currentStage && currentStage.dispose) currentStage.dispose();
+            console.log("Loading Stage 1...");
+            const stage1 = new Stage1(loadStage2);
+            currentStage = stage1;
+            
+            // Get Stage 1 canvas and set initial opacity to 0
+            const stage1Canvas = stage1 && stage1.renderer ? stage1.renderer.domElement : null;
+            if (stage1Canvas) {
+                stage1Canvas.style.position = 'absolute';
+                stage1Canvas.style.top = '0';
+                stage1Canvas.style.left = '0';
+                stage1Canvas.style.zIndex = '1';
+                stage1Canvas.style.opacity = '0';
+                
+                // Wait a few frames for Stage 1 to render, then fade in
+                let framesRendered = 0;
+                const waitForRender = () => {
+                    requestAnimationFrame(() => {
+                        framesRendered++;
+                        if (stage1 && stage1.update) stage1.update();
+                        if (framesRendered < 5) {
+                            waitForRender();
+                        } else {
+                            // Fade in Stage 1 and fade out white overlay simultaneously
+                            gsap.to(stage1Canvas, {
+                                opacity: 1,
+                                duration: 1.0,
+                                ease: "power2.inOut"
+                            });
+                            
+                            if (whiteOverlay) {
+                                gsap.to(whiteOverlay, {
+                                    opacity: 0,
+                                    duration: 1.0,
+                                    ease: "power2.inOut",
+                                    onComplete: () => {
+                                        whiteOverlay.remove();
+                                    }
+                                });
+                            }
+                        }
+                    });
+                };
+                waitForRender();
+            } else if (whiteOverlay) {
+                // If no canvas, just remove white overlay
+                whiteOverlay.remove();
+            }
+        }
+
+        function loadStage2(clickPosition) {
+            const stage1 = currentStage;
+            
+            console.log("Loading Stage 2 with camera transition...");
+            
+            // Create transition with camera movement
+            createCameraTransition(stage1, () => {
+                // Transition complete
+                console.log("Transition complete");
+            });
+        }
+
+        function loadStage3() {
+            console.log("Loading Stage 3 with camera transition...");
+            
+            // DON'T dispose Stage 2 yet - keep it visible during camera transition
+            const stage2 = currentStage;
+            
+            if (!stage2 || !stage2.camera) {
+                console.error("Stage 2 not properly initialized");
+                if (currentStage && currentStage.dispose) currentStage.dispose();
+                currentStage = new Stage3(null, loadStage4);
+                return;
+            }
+            
+            // Fade out Stage 2 audio and start camera transition simultaneously
+            fadeOutStage2Audio(stage2);
+            createCameraTransitionStage2To3(stage2, () => {
+                // Transition complete - Stage 3 is already created and set as currentStage
+                // inside createCameraTransitionStage2To3, so we don't need to create it again
+                console.log("[loadStage3] Transition complete, Stage 3 already initialized");
+            });
+        }
+
+        function loadStage4() {
+            console.log("Loading Stage 4 with cloud transition...");
+            
+            // DON'T dispose Stage 3 yet - keep it visible during the transition
+            const stage3 = currentStage;
+            
+            if (!stage3) {
+                console.error("Stage 3 not found");
+                if (currentStage && currentStage.dispose) currentStage.dispose();
+                currentStage = new Stage4(loadStage5);
+                return;
+            }
+            
+            // Start the DOM-based cloud transition
+            createCloudTransitionStage3To4(stage3, () => {
+                console.log("[loadStage4] Transition complete, Stage 4 active");
+            });
+        }
+
+        function loadStage5() {
+            console.log("Loading Stage 5 with fade transition...");
+            
+            // DON'T dispose Stage 4 yet - keep it visible during the transition
+            const stage4 = currentStage;
+            
+            if (!stage4) {
+                console.error("Stage 4 not found");
+                if (currentStage && currentStage.dispose) currentStage.dispose();
+                currentStage = new Stage5(null);
+                return;
+            }
+            
+            // Start the fade-to-white transition
+            createFadeTransitionStage4To5(stage4, () => {
+                console.log("[loadStage5] Transition complete, Stage 5 active");
+            });
+        }
+
+        function fadeOutStage4Audio(stage4) {
+            console.log("[Stage4->5 Transition] Fading out Stage 4 audio...");
+            
+            // Fade out AudioManager master volume
+            if (stage4.audioManager && stage4.audioManager.masterVolume) {
+                stage4.audioManager.masterVolume.volume.rampTo(-Infinity, 1.5); // Fade out over 1.5 seconds
+            }
+        }
+
+        function createFadeTransitionStage4To5(stage4, onComplete) {
+            console.log("[Stage4->5 Transition] Starting fade-to-white transition...");
+            
+            // Fade out Stage 4 audio first (1.5 seconds)
+            fadeOutStage4Audio(stage4);
+            
+            // 1. Create white overlay
+            const whiteOverlay = document.createElement('div');
+            whiteOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: white;
+                z-index: 99999;
+                opacity: 0;
+                pointer-events: none;
+            `;
+            document.body.appendChild(whiteOverlay);
+            
+            let hasSwappedStages = false;
+            const transitionDuration = 3.0; // Total transition duration in seconds
+            const audioFadeDuration = 1.5; // Audio fade duration (must complete before disposal)
+            
+            // 2. Fade in white overlay (fade out Stage 4) - starts simultaneously with audio fade
+            gsap.to(whiteOverlay, {
+                opacity: 1,
+                duration: transitionDuration / 2, // First half: fade to white (1.5 seconds)
+                ease: "power2.inOut",
+                onComplete: () => {
+                    // 3. Wait for audio to fully fade before swapping stages
+                    // Audio fade duration is 1.5s, white fade is also 1.5s, so they should complete together
+                    // But add a small buffer to ensure audio is definitely silent
+                    setTimeout(() => {
+                        if (!hasSwappedStages) {
+                            hasSwappedStages = true;
+                            console.log("[Stage4->5] White overlay fully opaque and audio faded. Swapping stages...");
+                            
+                            // Verify audio volume is at minimum before disposing
+                            if (stage4.audioManager && stage4.audioManager.masterVolume) {
+                                const currentVolume = stage4.audioManager.masterVolume.volume.value;
+                                console.log("[Stage4->5] Current audio volume:", currentVolume);
+                                // Force volume to -Infinity if not already there
+                                if (currentVolume > -Infinity) {
+                                    stage4.audioManager.masterVolume.volume.value = -Infinity;
+                                }
+                            }
+                            
+                            // A. Dispose Stage 4 (audio is now at 0 volume)
+                            if (stage4 && stage4.dispose) {
+                                stage4.dispose();
+                                console.log("Stage 4 disposed");
+                            }
+                            
+                            // B. Create Stage 5 (hidden underneath white overlay)
+                            const stage5 = new Stage5(null);
+                            currentStage = stage5;
+                            
+                            // Ensure body background matches Stage 5
+                            document.body.style.backgroundColor = '#e5e5eb';
+                            
+                            // 4. Fade out white overlay (fade in Stage 5)
+                            gsap.to(whiteOverlay, {
+                                opacity: 0,
+                                duration: transitionDuration / 2, // Second half: fade from white (1.5 seconds)
+                                ease: "power2.inOut",
+                                onComplete: () => {
+                                    console.log("[Stage4->5] Transition finished. Removing white overlay.");
+                                    // 5. Cleanup
+                                    whiteOverlay.remove();
+                                    if (onComplete) onComplete();
+                                }
+                            });
+                        }
+                    }, 200); // Small buffer to ensure audio fade completed
+                }
+            });
+        }
+
+        function fadeOutStage2Audio(stage2) {
+            console.log("[Stage2->3 Transition] Fading out Stage 2 audio...");
+            
+            // Fade out master volume
+            if (stage2.masterVolume) {
+                stage2.masterVolume.volume.rampTo(-Infinity, 2.0); // Fade out over 2 seconds
+            }
+            
+            // Fade out all flower synths
+            if (stage2.flowers) {
+                stage2.flowers.forEach(flower => {
+                    if (flower.synth) {
+                        flower.synth.volume.rampTo(-Infinity, 2.0);
+                    }
+                });
+            }
+        }
+
+        function createCameraTransitionStage2To3(stage2, onComplete) {
+            // CRITICAL: Preload all Stage 3 assets BEFORE starting transition
+            // This ensures no blank frames during loading
+            console.log("[Stage2->3 Transition] Preloading Stage 3 assets...");
+            
+            if (typeof stage3Preloader === 'undefined') {
+                console.error("[Stage2->3 Transition] Stage3Preloader not available, proceeding anyway");
+                startTransition();
+            } else {
+                stage3Preloader.preloadAll(() => {
+                    console.log("[Stage2->3 Transition] All Stage 3 assets preloaded, starting transition");
+                    startTransition();
+                });
+            }
+            
+            function startTransition() {
+                const camera = stage2.camera;
+                const scene = stage2.scene;
+                const renderer = stage2.renderer;
+                
+                // Store original camera position
+                const originalCameraY = camera.position.y;
+                
+                // Calculate viewport dimensions
+                const fov = camera.fov;
+                const camDist = camera.position.z;
+                const aspect = window.innerWidth / window.innerHeight; // Store aspect for use in onComplete
+                const vFOV = THREE.MathUtils.degToRad(fov);
+                const viewportHeight = 2 * Math.tan(vFOV / 2) * camDist;
+                
+                // Get the water mesh to calculate actual image dimensions
+                const waterMesh = stage2.waterMesh;
+                if (!waterMesh) {
+                    console.error("[Stage2->3 Transition] Water mesh not found");
+                    if (onComplete) onComplete();
+                    return;
+                }
+                
+                // Get the actual geometry height (which includes the full image with extra space)
+                const imageHeight = waterMesh.geometry.parameters.height;
+                
+                // Calculate how much extra space is at the top
+                const extraHeight = imageHeight - viewportHeight;
+                
+                // Calculate how much we can move up
+                // Move up by the extra height, but keep a bigger distance (about 15% of viewport) from the top
+                const margin = viewportHeight * 0.20; // 15% margin to prevent edges showing
+                const maxMoveUp = extraHeight - margin;
+                
+                const transitionDuration = 5.0; // 5 seconds for smooth transition
+                
+                console.log("[Stage2->3 Transition] Image height:", imageHeight, "Viewport height:", viewportHeight, "Extra height:", extraHeight, "Moving up by:", maxMoveUp);
+            
+            // Move paw down in screen space as camera moves up
+            // This keeps the paw in the same world position, so it moves out of view
+            const pawElement = stage2.pawElement;
+            if (pawElement) {
+                const currentPawY = parseFloat(pawElement.style.top) || stage2.pawState.y;
+                // Move paw down by the same amount the camera moves up (in screen space)
+                // Convert camera movement to screen space movement
+                const screenMoveDown = (maxMoveUp / camDist) * window.innerHeight;
+                const pawFinalY = currentPawY + screenMoveDown;
+                
+                gsap.to(pawElement, {
+                    top: pawFinalY,
+                    duration: transitionDuration,
+                    ease: "power2.inOut"
+                });
+            }
+            
+            // Gradually reduce water stretch effect to 0 as camera moves up
+            if (stage2.bgUniforms && stage2.bgUniforms.uStrength) {
+                const currentStrength = stage2.bgUniforms.uStrength.value;
+                gsap.to(stage2.bgUniforms.uStrength, {
+                    value: 0,
+                    duration: transitionDuration,
+                    ease: "power2.inOut"
+                });
+            }
+            
+            // Animate camera moving up
+            gsap.to(camera.position, {
+                y: originalCameraY + maxMoveUp,
+                duration: transitionDuration,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    console.log("[Stage2->3 Transition] Camera movement complete - capturing Stage 2's frame as overlay");
+                    
+                    // CRITICAL: Capture Stage 2's actual rendered frame as an image
+                    // This ensures the overlay matches EXACTLY what Stage 2 shows at the ending position
+                    // Force multiple renders to ensure we capture the correct frame
+                    if (stage2 && stage2.update) {
+                        stage2.update();
+                        stage2.update();
+                        stage2.update();
+                    }
+                    
+                    // Get Stage 2's canvas and create a snapshot
+                    const stage2Canvas = stage2.renderer ? stage2.renderer.domElement : null;
+                    if (!stage2Canvas) {
+                        console.error("[Stage2->3 Transition] Stage 2 canvas not found!");
+                        return;
+                    }
+                    
+                    // CRITICAL: Set Stage 2's canvas z-index BEFORE capturing snapshot
+                    // This ensures the canvas stays visible during transition (dispose() checks for z-index 9999)
+                    // We set it to 9999 so dispose() will keep it, but overlay (9999) will still be on top
+                    stage2Canvas.style.zIndex = '9999'; // Same as overlay, but overlay is added after so it's on top
+                    stage2Canvas.style.position = 'absolute'; // Ensure positioning works
+                    stage2Canvas.style.top = '0';
+                    stage2Canvas.style.left = '0';
+                    console.log("[Stage2->3 Transition] Stage 2 canvas z-index set to 9999 (will be kept during transition)");
+                    
+                    // Create a snapshot image from Stage 2's current frame
+                    const snapshotCanvas = document.createElement('canvas');
+                    snapshotCanvas.width = stage2Canvas.width;
+                    snapshotCanvas.height = stage2Canvas.height;
+                    const ctx = snapshotCanvas.getContext('2d');
+                    ctx.drawImage(stage2Canvas, 0, 0);
+                    
+                    // Convert canvas to image and wait for it to load
+                    const snapshotDataURL = snapshotCanvas.toDataURL();
+                    const snapshotImg = new Image();
+                    
+                    snapshotImg.onload = () => {
+                        console.log("[Stage2->3 Transition] Snapshot image loaded, creating overlay");
+                        
+                        // Create overlay using the loaded snapshot image
+                        const waterOverlay = document.createElement('div');
+                        waterOverlay.id = 'stage2-to-3-water-overlay';
+                        waterOverlay.style.position = 'fixed';
+                        waterOverlay.style.top = '0';
+                        waterOverlay.style.left = '0';
+                        waterOverlay.style.width = '100%';
+                        waterOverlay.style.height = '100%';
+                        waterOverlay.style.zIndex = '9999'; // Very high z-index to stay on top
+                        waterOverlay.style.pointerEvents = 'none';
+                        waterOverlay.style.backgroundImage = `url(${snapshotDataURL})`;
+                        waterOverlay.style.backgroundSize = '100% 100%'; // Stretch to fill exactly
+                        waterOverlay.style.backgroundPosition = 'center center';
+                        waterOverlay.style.backgroundRepeat = 'no-repeat';
+                        waterOverlay.style.opacity = '1'; // Fully visible immediately
+                        waterOverlay.style.backgroundColor = '#aaccff'; // Match Stage 2/3 background color as fallback
+                        
+                        // CRITICAL: Add overlay to DOM
+                        document.body.appendChild(waterOverlay);
+                        console.log("[Stage2->3 Transition] Water overlay added to DOM");
+                        
+                        // Wait for overlay to be fully painted/visible
+                        let framesWaited = 0;
+                        const waitForOverlayVisible = () => {
+                            requestAnimationFrame(() => {
+                                framesWaited++;
+                                
+                                const overlay = document.getElementById('stage2-to-3-water-overlay');
+                                const isOverlayVisible = overlay && 
+                                                       overlay.offsetWidth > 0 && 
+                                                       overlay.offsetHeight > 0 &&
+                                                       window.getComputedStyle(overlay).opacity === '1';
+                                
+                                // Wait at least 5 frames to ensure browser has painted the overlay
+                                if (framesWaited < 5 || !isOverlayVisible) {
+                                    waitForOverlayVisible();
+                                } else {
+                                    console.log("[Transition] Overlay is stable. Waiting 1.5s before swapping stages...");
+                                    
+                                    // Wait 1.5 seconds before swapping stages
+                                    setTimeout(() => {
+                                        
+                                        // 1. CAPTURE DATA from Stage 2
+                                        const waterState = {
+                                            texture: stage2.bgUniforms.uTexture.value, // Pass existing texture
+                                            uniforms: stage2.bgUniforms,
+                                            geometry: { 
+                                                width: stage2.waterMesh.geometry.parameters.width,
+                                                height: stage2.waterMesh.geometry.parameters.height
+                                            },
+                                            position: stage2.waterMesh.position.clone(),
+                                            cameraPosition: stage2.camera.position.clone(),
+                                            cameraRotation: stage2.camera.rotation.clone()
+                                        };
+                                        
+                                        // 2. DISPOSE Stage 2 (Overlay is covering the screen, so this is invisible)
+                                        if (stage2 && stage2.dispose) {
+                                            stage2.dispose();
+                                            console.log("[Transition] Stage 2 disposed.");
+                                        }
+                                        
+                                        // 3. CREATE Stage 3 (Synchronously)
+                                        console.log("[Transition] Creating Stage 3...");
+                                        const stage3 = new Stage3(waterState, loadStage4);
+                                        
+                                        const stage3Canvas = stage3.canvas || (stage3.renderer ? stage3.renderer.domElement : null);
+                                        if (stage3Canvas) {
+                                            stage3Canvas.style.zIndex = '1'; 
+                                            // CRITICAL: Keep canvas opacity at 0 until overlay is removed
+                                            // This prevents any flash of the clear color
+                                            stage3Canvas.style.opacity = '0';
+                                        }
+                                        
+                                        // CRITICAL: Set currentStage immediately so the main animate loop calls stage3.update()
+                                        // This ensures flowers are updated/rendered even during the transition wait period
+                                        // Without this, flowers are created but never updated because update() isn't called
+                                        currentStage = stage3;
+                                        console.log("[Transition] currentStage set to stage3, update loop should now be running");
+                                        
+                                        // 4. PRE-RENDER & REMOVE OVERLAY
+                                        // We wait more frames to ensure Stage 3 is fully rendered
+                                        let paintFrames = 0;
+                                        const waitForStage3Paint = () => {
+                                            requestAnimationFrame(() => {
+                                                paintFrames++;
+                                                if (stage3 && stage3.update) stage3.update();
+                                                
+                                                // Check if water mesh exists and has been rendered
+                                                const waterMeshReady = stage3 && stage3.waterMesh;
+                                                
+                                                // Wait for more frames AND ensure water mesh is ready
+                                                if (paintFrames < 10 || !waterMeshReady) {
+                                                    waitForStage3Paint();
+                                                } else {
+                                                    console.log("[Transition] Stage 3 ready. Fading out overlay and fading in Stage 3.");
+                                                    
+                                                    // Fade out overlay and fade in Stage 3 simultaneously
+                                                    const overlay = document.getElementById('stage2-to-3-water-overlay');
+                                                    
+                                                    if (overlay) {
+                                                        // Lower overlay z-index so canvas can be visible when it fades in
+                                                        overlay.style.zIndex = '0';
+                                                        gsap.to(overlay, {
+                                                            opacity: 0,
+                                                            duration: 0.3,
+                                                            ease: "power2.in",
+                                                            onComplete: () => {
+                                                                if (overlay && overlay.parentNode) overlay.remove();
+                                                            }
+                                                        });
+                                                    }
+                                                    
+                                                    // Fade in Stage 3 canvas
+                                                    if (stage3Canvas) {
+                                                        // Ensure canvas is above overlay
+                                                        stage3Canvas.style.zIndex = '2';
+                                                        gsap.to(stage3Canvas, {
+                                                            opacity: 1,
+                                                            duration: 0.3,
+                                                            ease: "power2.out"
+                                                        });
+                                                    }
+                                                    
+                                                    // Cleanup any stray canvases after a brief delay
+                                                    setTimeout(() => {
+                                                        document.querySelectorAll('canvas').forEach(c => {
+                                                            if (c !== stage3Canvas && c.parentNode) c.remove();
+                                                        });
+                                                    }, 100);
+                                                    
+                                                    if (onComplete) onComplete();
+                                                }
+                                            });
+                                        };
+                                        waitForStage3Paint();
+                                        
+                                    }, 1500); // <--- 1.5 SECOND WAIT BEFORE LOAD/UNLOAD
+                                }
+                            });
+                        };
+                        waitForOverlayVisible();
+                    };
+                    
+                    // Start loading the snapshot image
+                    snapshotImg.src = snapshotDataURL;
+                } // End of onComplete callback
+            }); // End of gsap.to call
+        } // End of startTransition function
+    } // End of createCameraTransitionStage2To3 function
+
+
+        function createCameraTransition(stage1, onComplete) {
+            if (!stage1 || !stage1.camera || !stage1.catMesh) {
+                console.error("Stage 1 not properly initialized");
+                if (onComplete) onComplete();
+                return;
+            }
+
+            const camera = stage1.camera;
+            const catMesh = stage1.catMesh;
+            const vines = stage1.vines || [];
+            const scene = stage1.scene;
+            const renderer = stage1.renderer;
+
+            // Store original positions
+            const originalCameraY = camera.position.y;
+            const originalCatY = catMesh.position.y;
+            const catZ = catMesh.position.z; // Cat is at z = -5
+            
+            // Store original vine positions
+            const vineOriginalPositions = vines.map(vine => ({
+                mesh: vine,
+                originalY: vine.position.y,
+                z: vine.position.z
+            }));
+
+            // Calculate movement distance needed to move everything out of view
+            // Camera moves up, objects move down relative to their depth
+            const cameraMoveDistance = 20; // Camera moves up this much
+            const transitionDuration = 4.0; // 3 seconds for movement
+
+            // Animate camera moving up
+            gsap.to(camera.position, {
+                y: originalCameraY + cameraMoveDistance,
+                duration: transitionDuration,
+                ease: "power2.inOut"
+            });
+
+            // Animate cat moving down (speed based on z depth)
+            // Objects further back (more negative z) move slower relative to camera
+            // Parallax factor: camera_z / (camera_z - object_z)
+            // Cat at z = -5: 12 / (12 - (-5)) = 12/17 ≈ 0.71 (moves slower)
+            const catParallaxFactor = camera.position.z / (camera.position.z - catZ);
+            const catMoveDistance = cameraMoveDistance * catParallaxFactor;
+            
+            gsap.to(catMesh.position, {
+                y: originalCatY - catMoveDistance,
+                duration: transitionDuration,
+                ease: "power2.inOut"
+            });
+
+            // Animate each vine moving down (different speeds based on their z depth)
+            // Vines at z = -1 to 1, so they move faster than cat
+            vineOriginalPositions.forEach(({ mesh, originalY, z }) => {
+                const vineParallaxFactor = camera.position.z / (camera.position.z - z);
+                const vineMoveDistance = cameraMoveDistance * vineParallaxFactor;
+                
+                gsap.to(mesh.position, {
+                    y: originalY - vineMoveDistance,
+                    duration: transitionDuration,
+                    ease: "power2.inOut"
+                });
+            });
+
+            // After movement completes, fade in Stage 2 from white (matching Stage 1 background)
+            setTimeout(() => {
+                // Create overlay matching Stage 1's background color (0xe5e5eb)
+                const backgroundOverlay = document.createElement('div');
+                backgroundOverlay.style.position = 'fixed';
+                backgroundOverlay.style.top = '0';
+                backgroundOverlay.style.left = '0';
+                backgroundOverlay.style.width = '100%';
+                backgroundOverlay.style.height = '100%';
+                backgroundOverlay.style.backgroundColor = '#e5e5eb'; // Match Stage 1 background (white/beige)
+                backgroundOverlay.style.zIndex = '10000';
+                backgroundOverlay.style.opacity = '1';
+                document.body.appendChild(backgroundOverlay);
+
+                // Dispose Stage 1
+                if (stage1 && stage1.dispose) {
+                    stage1.dispose();
+                }
+
+                // Create Stage 2
+                const stage2 = new Stage2(loadStage3);
+                const stage2Canvas = stage2 && stage2.renderer ? stage2.renderer.domElement : null;
+                
+                if (stage2Canvas) {
+                    stage2Canvas.style.position = 'absolute';
+                    stage2Canvas.style.top = '0';
+                    stage2Canvas.style.left = '0';
+                    stage2Canvas.style.zIndex = '1';
+                    stage2Canvas.style.opacity = '0'; // Start invisible behind background overlay
+                }
+
+                currentStage = stage2;
+
+                // Wait a few frames for Stage 2 to render
+                let framesRendered = 0;
+                const waitForRender = () => {
+                    requestAnimationFrame(() => {
+                        framesRendered++;
+                        if (stage2 && stage2.update) stage2.update();
+                        if (framesRendered < 5) {
+                            waitForRender();
+                        } else {
+                            // Fade out background overlay and fade in Stage 2 simultaneously
+                            gsap.to(backgroundOverlay, {
+                                opacity: 0,
+                                duration: 4.5,
+                                ease: "power2.out",
+                                onComplete: () => {
+                                    document.body.removeChild(backgroundOverlay);
+                                }
+                            });
+
+                            gsap.to(stage2Canvas, {
+                                opacity: 1,
+                                duration: 3.0,
+                                ease: "power2.inOut"
+                            });
+
+                            if (onComplete) onComplete();
+                        }
+                    });
+                };
+                waitForRender();
+            }, transitionDuration * 1000 + 100); // Wait for movement to complete
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            // Render both stages if both exist (during transition)
+            if (currentStage && currentStage.update) {
+                currentStage.update();
+            }
+        }
+        animate();
+    </script>
+</body>
+</html>
